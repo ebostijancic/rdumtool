@@ -18,6 +18,7 @@
 
 import struct
 import datetime
+import time
 import logging
 
 __version__ = '0.1'
@@ -138,7 +139,7 @@ class Response:
             self.amps,
         ))
 
-    def __init__(self, data=None, collection_time=None, device_type='UM24C'):
+    def __init__(self, data=None, collection_time=None, ns_timestamp=None, device_type='UM24C'):
         self.device_type = device_type
         if device_type == 'UM25C':
             self.device_multiplier = 10
@@ -241,6 +242,11 @@ class Response:
         if collection_time is None:
             collection_time = datetime.datetime.now()
         self.collection_time = collection_time
+
+        if ns_timestamp is None:
+            ns_timestamp = time.time_ns()
+        self.ns_timestamp = ns_timestamp
+
         for name in self._std_defs:
             setattr(self, name, 0)
         self.data_groups = [DataGroup(x) for x in range(10)]

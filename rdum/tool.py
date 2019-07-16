@@ -71,6 +71,14 @@ def parse_args(argv=None):
         help='Output JSON data',
     )
     parser.add_argument(
+        '--csv', action='store_true', 
+        help='Output CSV data'
+    )
+    parser.add_argument(
+        '--influx', action='store_true',
+        help='Print to InfluxDB'
+    )
+    parser.add_argument(
         '--watch', type=float, const=2.0, nargs='?', default=None,
         help='Repeat every WATCH seconds',
     )
@@ -121,6 +129,13 @@ class RDUMTool:
         out['data_groups'] = [{'amp_hours': x.amp_hours, 'watt_hours': x.watt_hours} for x in out['data_groups']]
         out['collection_time'] = (out['collection_time'] - datetime.datetime.fromtimestamp(0)).total_seconds()
         print(json.dumps(out))
+
+    def print_csv(self, response):
+        print(response.volts, response.amps, response.watts, response.ns_timestamp, sep=';')
+
+    def influx(self, response):
+        line = "um24c,host={} voltage={},current={},power={} {}".format("host", response.volts, response.amps, response.watts, response.ns_timestamp)
+        print(line)
 
     def print_human(self, response):
         logging.debug('DUMP: {}'.format(repr(response.dump())))
@@ -265,6 +280,20 @@ class RDUMTool:
                         collection_time=datetime.datetime.now(),
                         device_type=self.args.device_type,
                     ))
+                elif self.args.csv:
+                    self.print_csv(rdum.Response(
+                        self.dev.recv(),
+                        collection_time=datetime.datetime.now(),
+                        ns_timestamp=time.time_ns(),
+                        device_type=self.args.device_type,
+                    ))
+                elif self.args.influx:
+                    self.influx(rdum.Response(
+                        self.dev.recv(),
+                        collection_time=datetime.datetime.now(),
+                        ns_timestamp=time.time_ns(),
+                        device_type=self.args.device_type,
+                    ))
                 else:
                     self.print_human(rdum.Response(
                         self.dev.recv(),
@@ -279,8 +308,8 @@ class RDUMTool:
                 else:
                     logging.exception('An exception has occurred')
             if self.args.watch is not None:
-                if not self.args.json:
-                    print()
+                #if not self.args.json and self.args.csv:
+                #    print()
                 if self.args.watch > 0:
                     time.sleep(self.args.watch)
             else:
@@ -297,6 +326,9 @@ class RDUMTool:
         self.setup_device()
         try:
             self.send_commands()
+
+            if self.args.csv:
+                print("V;A;W;timestamp")
             self.loop()
         except KeyboardInterrupt:
             pass
